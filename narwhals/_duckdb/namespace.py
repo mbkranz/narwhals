@@ -159,17 +159,21 @@ class DuckDBNamespace(
             
             parts = []
             for i, col in enumerate(cols):
-                # Try to determine if this is a simple column reference
+                # Try to determine if this is a simple column reference by checking
+                # the string representation. This is a heuristic - simple column names
+                # shouldn't contain operators or special SQL syntax characters.
+                # More complex nested structures may need additional handling.
                 col_str = str(col)
-                # Simple columns don't have operators or parentheses
                 is_simple_column = not any(c in col_str for c in ['(', ')', '*', '+', '-', '/', '"'])
                 
                 if is_simple_column:
-                    # Simple column reference - use the column name
+                    # Simple column reference - use the column name as both field name and reference
                     try:
                         name = col.get_name()
-                        parts.append(f"{name} := {name}")
-                    except Exception:
+                        # Use the column expression directly to ensure proper reference
+                        parts.append(f"{name} := {col}")
+                    except (AttributeError, ValueError):
+                        # get_name() not available or failed - use generated field name
                         field_name = f"field_{i}"
                         parts.append(f"{field_name} := {col}")
                 else:
