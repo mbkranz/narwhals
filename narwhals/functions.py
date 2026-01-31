@@ -1651,6 +1651,59 @@ def coalesce(
     )
 
 
+def struct(*exprs: IntoExpr | Iterable[IntoExpr]) -> Expr:
+    """Collect multiple expressions into a struct expression.
+
+    Arguments:
+        exprs: Column names (strings) or expressions to collect into a struct.
+            Accepts expressions that produce multiple outputs.
+
+    Notes:
+        The left-hand naming rule applies. The output column name is taken
+        from the first expression.
+
+    Examples:
+        >>> import polars as pl
+        >>> import narwhals as nw
+        >>> df_native = pl.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]})
+        >>> df = nw.from_native(df_native)
+        >>> df.select(nw.struct("a", "b").alias("my_struct"))
+        ┌─────────────────┐
+        |Narwhals DataFrame|
+        |-----------------|
+        |shape: (3, 1)    |
+        |┌───────────┐    |
+        |│ my_struct │    |
+        |│ ---       │    |
+        |│ struct[2] │    |
+        |╞═══════════╡    |
+        |│ {1,4}     │    |
+        |│ {2,5}     │    |
+        |│ {3,6}     │    |
+        |└───────────┘    |
+        └─────────────────┘
+
+        Struct columns can be unnested again:
+
+        >>> df.select(nw.struct("a", nw.col("b")).alias("my_struct")).unnest("my_struct")
+        ┌─────────────────┐
+        |Narwhals DataFrame|
+        |-----------------|
+        |shape: (3, 2)    |
+        |┌─────┬─────┐    |
+        |│ a   ┆ b   │    |
+        |│ --- ┆ --- │    |
+        |│ i64 ┆ i64 │    |
+        |╞═════╪═════╡    |
+        |│ 1   ┆ 4   │    |
+        |│ 2   ┆ 5   │    |
+        |│ 3   ┆ 6   │    |
+        |└─────┴─────┘    |
+        └─────────────────┘
+    """
+    return _expr_with_horizontal_op("struct", *flatten(exprs))
+
+
 def format(f_string: str, *args: IntoExpr) -> Expr:
     """Format expressions as a string.
 

@@ -151,6 +151,25 @@ class DuckDBNamespace(
             version=self._version,
         )
 
+    def struct(self, *exprs: DuckDBExpr) -> DuckDBExpr:
+        def func(df: DuckDBLazyFrame) -> list[Expression]:
+            cols: list[Expression] = list(chain.from_iterable(e(df) for e in exprs))
+            # Use DuckDB's struct_pack function to create a struct
+            return [function("struct_pack", *cols)]
+
+        def window_func(
+            df: DuckDBLazyFrame, _window_inputs: WindowInputs[Expression]
+        ) -> list[Expression]:
+            return func(df)
+
+        return self._expr(
+            func,
+            window_func,
+            evaluate_output_names=combine_evaluate_output_names(*exprs),
+            alias_output_names=combine_alias_output_names(*exprs),
+            version=self._version,
+        )
+
     def len(self) -> DuckDBExpr:
         def func(_df: DuckDBLazyFrame) -> list[Expression]:
             return [F("count")]

@@ -148,6 +148,10 @@ class PolarsNamespace:
             )
         return self._expr(pl.lit(value), version=self._version)
 
+    def struct(self, *exprs: PolarsExpr) -> PolarsExpr:
+        pl_exprs = [expr._native_expr for expr in exprs]
+        return self._expr(pl.struct(*pl_exprs), version=self._version)
+
     def mean_horizontal(self, *exprs: PolarsExpr) -> PolarsExpr:
         if self._backend_version < (0, 20, 8):
             return self._expr(

@@ -878,6 +878,10 @@ def coalesce(exprs: IntoExpr | Iterable[IntoExpr], *more_exprs: IntoExpr) -> Exp
     return _stableify(nw.coalesce(exprs, *more_exprs))
 
 
+def struct(*exprs: IntoExpr | Iterable[IntoExpr]) -> Expr:
+    return _stableify(nw.struct(*exprs))
+
+
 def get_level(
     obj: DataFrame[Any] | LazyFrame[Any] | Series[IntoSeriesT],
 ) -> Literal["full", "lazy", "interchange"]:
@@ -1146,6 +1150,7 @@ __all__ = [
     "scan_parquet",
     "selectors",
     "show_versions",
+    "struct",
     "sum",
     "sum_horizontal",
     "to_native",

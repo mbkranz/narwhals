@@ -116,6 +116,19 @@ class SparkLikeNamespace(
             implementation=self._implementation,
         )
 
+    def struct(self, *exprs: SparkLikeExpr) -> SparkLikeExpr:
+        def func(df: SparkLikeLazyFrame) -> list[Column]:
+            columns = list(chain.from_iterable(expr(df) for expr in exprs))
+            # Use Spark's struct function to combine columns
+            return [df._F.struct(*columns)]
+
+        return self._expr._from_callable(
+            func=func,
+            evaluate_output_names=combine_evaluate_output_names(*exprs),
+            alias_output_names=combine_alias_output_names(*exprs),
+            context=self,
+        )
+
     def len(self) -> SparkLikeExpr:
         def func(df: SparkLikeLazyFrame) -> list[Column]:
             return [df._F.count("*")]

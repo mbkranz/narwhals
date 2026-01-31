@@ -80,6 +80,24 @@ class ArrowNamespace(
             version=self._version,
         )
 
+    def struct(self, *exprs: ArrowExpr) -> ArrowExpr:
+        def func(df: ArrowDataFrame) -> list[ArrowSeries]:
+            series = list(chain.from_iterable(expr(df) for expr in exprs))
+            name = series[0].name
+            # Use pyarrow.compute.struct to create struct arrays
+            struct_array = pc.make_struct(
+                *[s.native for s in series],
+                field_names=[s.name for s in series]
+            )
+            return [ArrowSeries(struct_array, name=name, version=self._version)]
+
+        return self._expr._from_callable(
+            func=func,
+            evaluate_output_names=combine_evaluate_output_names(*exprs),
+            alias_output_names=combine_alias_output_names(*exprs),
+            context=self,
+        )
+
     def all_horizontal(self, *exprs: ArrowExpr, ignore_nulls: bool) -> ArrowExpr:
         def func(df: ArrowDataFrame) -> list[ArrowSeries]:
             series: Iterator[ArrowSeries] = chain.from_iterable(e(df) for e in exprs)
