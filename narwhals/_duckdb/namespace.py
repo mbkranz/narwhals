@@ -19,6 +19,7 @@ from narwhals._duckdb.utils import (
     function,
     lit,
     narwhals_to_native_dtype,
+    sql_expression,
     when,
 )
 from narwhals._expression_parsing import (
@@ -154,8 +155,30 @@ class DuckDBNamespace(
     def struct(self, *exprs: DuckDBExpr) -> DuckDBExpr:
         def func(df: DuckDBLazyFrame) -> list[Expression]:
             cols: list[Expression] = list(chain.from_iterable(e(df) for e in exprs))
-            # Use DuckDB's struct_pack function to create a struct
-            return [function("struct_pack", *cols)]
+            # DuckDB struct_pack requires named arguments: struct_pack(name := expr, ...)
+            
+            parts = []
+            for i, col in enumerate(cols):
+                # Try to determine if this is a simple column reference
+                col_str = str(col)
+                # Simple columns don't have operators or parentheses
+                is_simple_column = not any(c in col_str for c in ['(', ')', '*', '+', '-', '/', '"'])
+                
+                if is_simple_column:
+                    # Simple column reference - use the column name
+                    try:
+                        name = col.get_name()
+                        parts.append(f"{name} := {name}")
+                    except Exception:
+                        field_name = f"field_{i}"
+                        parts.append(f"{field_name} := {col}")
+                else:
+                    # Complex expression - use a generated field name
+                    field_name = f"field_{i}"
+                    parts.append(f"{field_name} := {col}")
+            
+            struct_sql = f"struct_pack({', '.join(parts)})"
+            return [sql_expression(struct_sql)]
 
         def window_func(
             df: DuckDBLazyFrame, _window_inputs: WindowInputs[Expression]
