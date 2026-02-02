@@ -116,6 +116,60 @@ class SparkLikeNamespace(
             implementation=self._implementation,
         )
 
+    def struct(self, *exprs: SparkLikeExpr) -> SparkLikeExpr:
+        def _collect_named_columns(
+            df: SparkLikeLazyFrame,
+            *,
+            use_window: bool,
+            window_inputs: WindowInputs[Column] | None,
+        ) -> list[tuple[str, Column]]:
+            named_columns: list[tuple[str, Column]] = []
+            for expr in exprs:
+                if use_window:
+                    cols = expr.window_function(  # type: ignore[arg-type]
+                        df, window_inputs
+                    )
+                else:
+                    cols = expr(df)
+                names = expr._evaluate_output_names(df)
+                if expr._alias_output_names is not None:
+                    names = expr._alias_output_names(names)
+                if len(names) != len(cols):  # pragma: no cover
+                    msg = (
+                        "Internal error: got output names "
+                        f"{names}, but only got {len(cols)} results"
+                    )
+                    raise AssertionError(msg)
+                named_columns.extend(zip(names, cols))
+            return named_columns
+
+        def func(df: SparkLikeLazyFrame) -> list[Column]:
+            named_columns = _collect_named_columns(
+                df, use_window=False, window_inputs=None
+            )
+            return [
+                df._F.struct(*(col.alias(name) for name, col in named_columns))
+            ]
+
+        def window_func(
+            df: SparkLikeLazyFrame, window_inputs: WindowInputs[Column]
+        ) -> list[Column]:
+            named_columns = _collect_named_columns(
+                df, use_window=True, window_inputs=window_inputs
+            )
+            return [
+                df._F.struct(*(col.alias(name) for name, col in named_columns))
+            ]
+
+        return self._expr(
+            func,
+            window_func,
+            evaluate_output_names=combine_evaluate_output_names(*exprs),
+            alias_output_names=combine_alias_output_names(*exprs),
+            version=self._version,
+            implementation=self._implementation,
+        )
+
     def len(self) -> SparkLikeExpr:
         def func(df: SparkLikeLazyFrame) -> list[Column]:
             return [df._F.count("*")]

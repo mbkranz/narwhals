@@ -19,6 +19,7 @@ from narwhals._duckdb.utils import (
     function,
     lit,
     narwhals_to_native_dtype,
+    sql_expression,
     when,
 )
 from narwhals._expression_parsing import (
@@ -148,6 +149,51 @@ class DuckDBNamespace(
             window_func,
             evaluate_output_names=lambda _df: ["literal"],
             alias_output_names=None,
+            version=self._version,
+        )
+
+    def struct(self, *exprs: DuckDBExpr) -> DuckDBExpr:
+        def func(df: DuckDBLazyFrame) -> list[Expression]:
+            cols: list[Expression] = list(chain.from_iterable(e(df) for e in exprs))
+            # DuckDB struct_pack requires named arguments: struct_pack(name := expr, ...)
+            
+            parts = []
+            for i, col in enumerate(cols):
+                # Try to determine if this is a simple column reference by checking
+                # the string representation. This is a heuristic - simple column names
+                # shouldn't contain operators or special SQL syntax characters.
+                # More complex nested structures may need additional handling.
+                col_str = str(col)
+                is_simple_column = not any(c in col_str for c in ['(', ')', '*', '+', '-', '/', '"'])
+                
+                if is_simple_column:
+                    # Simple column reference - use the column name as both field name and reference
+                    try:
+                        name = col.get_name()
+                        # Use the column expression directly to ensure proper reference
+                        parts.append(f"{name} := {col}")
+                    except (AttributeError, ValueError):
+                        # get_name() not available or failed - use generated field name
+                        field_name = f"field_{i}"
+                        parts.append(f"{field_name} := {col}")
+                else:
+                    # Complex expression - use a generated field name
+                    field_name = f"field_{i}"
+                    parts.append(f"{field_name} := {col}")
+            
+            struct_sql = f"struct_pack({', '.join(parts)})"
+            return [sql_expression(struct_sql)]
+
+        def window_func(
+            df: DuckDBLazyFrame, _window_inputs: WindowInputs[Expression]
+        ) -> list[Expression]:
+            return func(df)
+
+        return self._expr(
+            func,
+            window_func,
+            evaluate_output_names=combine_evaluate_output_names(*exprs),
+            alias_output_names=combine_alias_output_names(*exprs),
             version=self._version,
         )
 

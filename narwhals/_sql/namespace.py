@@ -72,6 +72,15 @@ class SQLNamespace(
 
         return self._expr._from_elementwise_horizontal_op(func, *exprs)
 
+    def struct(self, *exprs: SQLExprT) -> SQLExprT:
+        """Create a struct from multiple expressions.
+        
+        Implementation depends on the SQL dialect (e.g., DuckDB uses struct_pack,
+        Spark uses struct).
+        """
+        # This is a protocol method - concrete implementations in subclasses
+        ...
+
     def when_then(
         self, predicate: SQLExprT, then: SQLExprT, otherwise: SQLExprT | None = None
     ) -> SQLExprT:

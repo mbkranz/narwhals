@@ -116,6 +116,36 @@ class PandasLikeNamespace(
             version=self._version,
         )
 
+    def struct(self, *exprs: PandasLikeExpr) -> PandasLikeExpr:
+        def func(df: PandasLikeDataFrame) -> list[PandasLikeSeries]:
+            series = list(chain.from_iterable(expr(df) for expr in exprs))
+            name = series[0].name
+            # For pandas, we'll create a series of dicts which act as struct-like
+            # This matches how pandas handles struct-like data
+            native_series = [s._native_series for s in series]
+            field_names = [s.name for s in series]
+            
+            # Create a series of dictionaries
+            import pandas as pd
+            result = pd.Series(
+                [
+                    {field_names[i]: row[i] for i in range(len(field_names))}
+                    for row in zip(*native_series)
+                ],
+                name=name,
+                index=df._native_frame.index,
+            )
+            return [
+                self._series(result, implementation=self._implementation, version=self._version)
+            ]
+
+        return self._expr._from_callable(
+            func=func,
+            evaluate_output_names=combine_evaluate_output_names(*exprs),
+            alias_output_names=combine_alias_output_names(*exprs),
+            context=self,
+        )
+
     # --- horizontal ---
     def sum_horizontal(self, *exprs: PandasLikeExpr) -> PandasLikeExpr:
         def func(df: PandasLikeDataFrame) -> list[PandasLikeSeries]:
