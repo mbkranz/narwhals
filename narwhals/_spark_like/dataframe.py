@@ -208,6 +208,14 @@ class SparkLikeLazyFrame(
         if backend is Implementation.PANDAS:
             from narwhals._pandas_like.dataframe import PandasLikeDataFrame
 
+            # Note: When collecting to pandas, Spark's toPandas() may preserve
+            # struct columns as ArrowDtype structs. According to narwhals conventions,
+            # struct types should be represented as dicts (Python objects) in pandas
+            # and as native struct types in polars/pyarrow. The current implementation
+            # uses toPandas() directly which may use ArrowDtype for struct columns.
+            # This is acceptable for pandas >= 2.2 with ArrowDtype support.
+            # For true dict-based struct representation, consider converting through
+            # Arrow and explicitly handling struct types.
             return PandasLikeDataFrame(
                 self.native.toPandas(),
                 implementation=Implementation.PANDAS,
