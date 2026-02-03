@@ -119,3 +119,23 @@ def test_struct_empty_error() -> None:
     """Test that creating a struct with no arguments raises an error."""
     with pytest.raises(ValueError, match="At least one expression"):
         nw.struct()
+
+
+def test_struct_field_access(constructor: Constructor) -> None:
+    """Test accessing struct fields using .struct.field() (JSON path dot notation).
+    
+    This ensures that structs created with nw.struct() can be accessed
+    using the .struct.field() method for extracting individual fields.
+    """
+    data = {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}
+    df = nw.from_native(constructor(data))
+    
+    # Create a struct and then access its fields
+    result = df.select(nw.struct("a", "b").alias("my_struct")).select(
+        nw.col("my_struct").struct.field("a"),
+        nw.col("my_struct").struct.field("b")
+    )
+    
+    # Should get back the original columns a and b
+    expected = {"a": [1, 2, 3], "b": [4, 5, 6]}
+    assert_equal_data(result, expected)
