@@ -118,4 +118,3 @@ def test_struct_collect_to_pyarrow(constructor: Constructor) -> None:
     # For pyarrow, the column should have a struct type (narwhals convention)
     col_type = native.schema.field("my_struct").type
     assert pa.types.is_struct(col_type)
-
