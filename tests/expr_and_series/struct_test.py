@@ -122,7 +122,7 @@ def test_struct_empty_error() -> None:
 
 
 def test_struct_field_access(constructor: Constructor) -> None:
-    """Test accessing struct fields using .struct.field() (JSON path dot notation).
+    """Test accessing struct fields using .struct.field() method.
     
     This ensures that structs created with nw.struct() can be accessed
     using the .struct.field() method for extracting individual fields.

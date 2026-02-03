@@ -13,8 +13,11 @@ def test_struct_collect_to_pandas(constructor: Constructor) -> None:
     """Test that struct columns are properly handled when collecting to pandas.
     
     When collecting a lazy frame with struct columns to pandas backend,
-    the struct values should be accessible as dict-like objects for pandas compatibility.
-    This verifies that narwhals properly converts struct types based on the target backend.
+    the struct values should be accessible. Based on narwhals conventions,
+    pandas may represent structs as either:
+    - Native Python dicts (object dtype) for compatibility
+    - ArrowDtype with struct type for pandas >= 2.2
+    Both representations are acceptable and should provide field access.
     """
     if "pandas_constructor" in str(constructor):
         # Skip for eager pandas since we're testing lazy collection
