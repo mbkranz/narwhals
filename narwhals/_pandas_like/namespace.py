@@ -122,6 +122,9 @@ class PandasLikeNamespace(
             name = series[0].name
             # For pandas, we'll create a series of dicts which act as struct-like
             # This matches how pandas handles struct-like data
+            # Note: This could alternatively be implemented using pandas' ArrowDtype
+            # with pyarrow.struct type for better performance and true struct semantics,
+            # but the dict-based approach provides wider compatibility with older pandas versions
             native_series = [s._native_series for s in series]
             field_names = [s.name for s in series]
             
